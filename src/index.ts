@@ -2,7 +2,18 @@ import { Logger } from '@faasjs/utils';
 
 interface IConfig {
   mode?: string;
-  triggers?: any;
+  triggers?: {
+    http?: {
+      method?: string;
+      path?: string;
+      param?: {
+        [key: string]: {
+          position?: 'header' | 'query' | 'body';
+          required?: boolean;
+        };
+      }
+    } | boolean;
+  };
 }
 
 class Flow {
@@ -15,38 +26,42 @@ class Flow {
    * 新建流程
    * @param config {object} 配置项
    * @param config.mode {string} [config.mode=sync] 执行模式，默认为 sync 同步执行，支持 async 异步执行
+   * @param config.triggers {object} 触发器配置
    * @param args {step[]} 步骤数组
    */
   constructor(config: IConfig, ...args: any) {
+    this.logger = new Logger('@faasjs/flow');
+
     if (!args.length) {
-      throw Error('不能创建空流程');
-    }
-
-    this.config = config;
-
-    if (!this.config.mode) {
-      this.config.mode = 'sync';
+      throw Error('Step required');
     }
 
     this.steps = Array.from(args);
+
+    this.config = Object.assign({ mode: 'sync', triggers: {} }, config);
+
     this.currentStepIndex = -1;
-    this.logger = new Logger('@faasjs/flow');
   }
 
-  public async trigger(type: string, event: any, context: any) {
-    this.logger.debug('trigger %s with %o %o', type, event, context);
+  public createTrigger(type: string) {
+    return async (event: any, context: any) => {
+      this.logger.debug('trigger %s with %o %o', type, event, context);
 
-    this.currentStepIndex = -1;
+      this.currentStepIndex = -1;
 
-    let lastResult: any;
+      let lastResult: any;
 
-    switch (type) {
-      case 'http':
-        lastResult = await this.httpTrigger(event, context);
-        break;
-    }
+      switch (type) {
+        case 'invoke':
+          lastResult = await this.invokeTrigger(event, context);
+          break;
+        case 'http':
+          lastResult = await this.httpTrigger(event, context);
+          break;
+      }
 
-    return lastResult;
+      return lastResult;
+    };
   }
 
   public async invoke(index: number, prev: any) {
@@ -102,72 +117,136 @@ class Flow {
     return result;
   }
 
+  private async invokeTrigger(event: any, context: any) {
+    this.logger.debug('invokeTrigger %o %o', event, context);
+
+    // 触发流程
+    let output: any;
+    if (this.config.mode === 'sync') {
+      const results = await this.invoke(-1, event);
+      output = results[this.currentStepIndex];
+    } else if (this.config.mode === 'async') {
+      // 异步模式只执行第一个步骤
+      output = await this.invoke(0, event);
+      await this.remoteInvoke(1, output);
+    }
+
+    // 处理结果并返回
+    return output;
+  }
+
   private async httpTrigger(event: any, context: any) {
     this.logger.debug('httpTrigger %o %o', event, context);
 
     // 预处理输入内容
-    const input = {
+    const input: {
+      body: any;
+      header: any;
+      method: string;
+      query: any;
+      param: any;
+    } = {
       body: event.body || null,
       header: event.headers || {},
+      method: event.httpMethod || 'GET',
+      param: {},
       query: event.queryString || {},
     };
+
+    if (input.header['Content-Type'] && input.header['Content-Type'].includes('application/json')) {
+      input.body = JSON.parse(input.body);
+    }
 
     const outputHeaders = {
       'Content-Type': 'application/json; charset=UTF-8',
       // 'X-Request-Id': context.request_id
     };
 
-    // 触发流程
-    let output: any;
-    if (this.config.mode === 'sync') {
-      try {
-        const results = await this.invoke(-1, input);
-        output = results[this.currentStepIndex];
-      } catch (error) {
-        this.logger.error(error);
+    let output: any = null;
 
-        // 预处理错误内容的格式
-        if (error.body && typeof error.body !== 'string') {
-          error.body = JSON.stringify(error.body);
-        }
+    // 输入项校验
+    if (this.config.triggers && typeof this.config.triggers.http === 'object') {
+      // 校验请求方法
+      if (this.config.triggers.http.method && input.method !== this.config.triggers.http.method) {
+        output = Error('Wrong method');
+      }
 
-        if (error.statusCode && error.headers) {
-          // 若 error 是一个 Response，则直接透传
-          output = error;
-        } else if (error.code && error.message) {
-          // 若 Error 包含 code 和 message
-          output = {
-            body: JSON.stringify({ message: error.message }),
-            headers: outputHeaders,
-            statusCode: error.code,
-          };
-        } else {
-          // 按默认错误格式返回
-          output = {
-            body: error.message || error.body,
-            headers: outputHeaders,
-            statusCode: 500,
-          };
+      // 校验参数
+      if (this.config.triggers.http.param) {
+        for (const key in this.config.triggers.http.param) {
+          if (this.config.triggers.http.param.hasOwnProperty(key)) {
+            const config = this.config.triggers.http.param[key];
+
+            // 默认从 body 中读取参数
+            if (!config.position) {
+              config.position = 'body';
+            }
+
+            // 必填项校验
+            if (config.required &&
+              (
+                !input[config.position] ||
+                typeof input[config.position][key] === 'undefined' ||
+                input[config.position][key] === null
+              )
+            ) {
+              output = Error(`${key} required`);
+              break;
+            }
+
+            const value = input[config.position][key];
+
+            // 将通过校验的数据存入 input.param
+            input.param[key] = value;
+          }
         }
       }
-    } else if (this.config.mode === 'async') {
-      await this.remoteInvoke(0, input);
-      output = null;
+    }
+
+    // 若输入项校验通过，则触发流程
+    if (output === null) {
+      if (this.config.mode === 'sync') {
+        // 同步执行模式，执行全部步骤
+        const results = await this.invoke(-1, input);
+        output = results[this.currentStepIndex];
+        this.logger.debug('result %o', output);
+      } else if (this.config.mode === 'async') {
+        // 异步模式，异步调用下一步，无返回
+        await this.remoteInvoke(0, input);
+        output = null;
+      }
     }
 
     // 处理结果并返回
-    if (typeof output !== 'undefined' && output !== null) {
-      return {
-        body: JSON.stringify({ data: output }),
-        headers: outputHeaders,
-        statusCode: 200,
-      };
-    } else {
-      return {
-        headers: outputHeaders,
+    if (typeof output === 'undefined' || output === null) {
+      // 没有结果或结果内容为空时，直接返回 201
+      output = {
         statusCode: 201,
       };
+    } else if (output instanceof Error) {
+      // 当结果是错误类型时
+      output = {
+        body: { error: { message: output.message } },
+        statusCode: 500,
+      };
+    } else if (!output.statusCode) {
+      output = {
+        body: { data: output },
+        statusCode: 200,
+      };
     }
+
+    // 注入公共响应头
+    output.headers = Object.assign(output.headers || {}, outputHeaders);
+
+    // 序列化 body
+    if (typeof output.body !== 'string') {
+      output.body = JSON.stringify(output.body);
+    }
+
+    // 返回响应
+    this.logger.debug('response %o', output);
+    return output;
   }
 }
 

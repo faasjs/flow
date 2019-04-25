@@ -12,5 +12,6 @@
 | --- | --- | --- |
 | config | <code>object</code> | 配置项 |
 | config.mode | <code>string</code> | [config.mode=sync] 执行模式，默认为 sync 同步执行，支持 async 异步执行 |
+| config.triggers | <code>object</code> | 触发器配置 |
 | ...args | <code>Array.&lt;step&gt;</code> | 步骤数组 |
 
