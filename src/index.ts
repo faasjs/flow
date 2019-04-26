@@ -2,6 +2,17 @@ import { Logger } from '@faasjs/utils';
 
 interface IConfig {
   mode?: string;
+  env?: {
+    defaults: {
+      [key: string]: any;
+    };
+    testing?: {
+      [key: string]: any;
+    };
+    production?: {
+      [key: string]: any;
+    }
+  };
   triggers?: {
     http?: {
       method?: string;
@@ -13,6 +24,10 @@ interface IConfig {
         };
       }
     } | boolean;
+  };
+  resourceName?: string;
+  resourceConfig?: {
+    [key: string]: any;
   };
 }
 
@@ -26,7 +41,10 @@ class Flow {
    * 新建流程
    * @param config {object} 配置项
    * @param config.mode {string} [config.mode=sync] 执行模式，默认为 sync 同步执行，支持 async 异步执行
-   * @param config.triggers {object} 触发器配置
+   * @param config.triggers {object=} 触发器配置
+   * @param config.env {object=} 环境变量，默认支持 defaults、testing 和 production
+   * @param config.resourceName {string=} 云资源名
+   * @param config.resourceConfig {object=} 云资源配置，将覆盖默认的云资源配置项
    * @param args {step[]} 步骤数组
    */
   constructor(config: IConfig, ...args: any) {
@@ -38,7 +56,7 @@ class Flow {
 
     this.steps = Array.from(args);
 
-    this.config = Object.assign({ mode: 'sync', triggers: {} }, config);
+    this.config = Object.assign({ mode: 'sync', triggers: {}, resouceConfig: {} }, config);
 
     this.currentStepIndex = -1;
   }
