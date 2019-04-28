@@ -13,7 +13,7 @@ describe('trigger.http', function () {
         },
       );
 
-      const res = await flow.createTrigger('invoke')(0, {});
+      const res = await flow.createTrigger('invoke', -1)(0, {});
 
       expect(res).toEqual(3);
     });
@@ -31,7 +31,7 @@ describe('trigger.http', function () {
         },
       );
 
-      const res = await flow.createTrigger('invoke')(0, {});
+      const res = await flow.createTrigger('invoke', 0)(0, {});
 
       expect(res).toEqual(1);
     });

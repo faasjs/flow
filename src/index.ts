@@ -56,12 +56,12 @@ class Flow {
 
     this.steps = Array.from(args);
 
-    this.config = Object.assign({ mode: 'sync', triggers: {}, resouceConfig: {} }, config);
+    this.config = Object.assign({ mode: 'sync', triggers: {}, resourceConfig: {} }, config);
 
     this.currentStepIndex = -1;
   }
 
-  public createTrigger(type: string) {
+  public createTrigger(type: string, key?: any) {
     return async (event: any, context: any) => {
       this.logger.debug('trigger %s with %o %o', type, event, context);
 
@@ -71,7 +71,7 @@ class Flow {
 
       switch (type) {
         case 'invoke':
-          lastResult = await this.invokeTrigger(event, context);
+          lastResult = await this.invokeTrigger(key, event, context);
           break;
         case 'http':
           lastResult = await this.httpTrigger(event, context);
@@ -135,8 +135,8 @@ class Flow {
     return result;
   }
 
-  private async invokeTrigger(event: any, context: any) {
-    this.logger.debug('invokeTrigger %o %o', event, context);
+  private async invokeTrigger(key: any, event: any, context: any) {
+    this.logger.debug('invokeTrigger %o %o %o', key, event, context);
 
     // 触发流程
     let output: any;
@@ -145,8 +145,8 @@ class Flow {
       output = results[this.currentStepIndex];
     } else if (this.config.mode === 'async') {
       // 异步模式只执行第一个步骤
-      output = await this.invoke(0, event);
-      await this.remoteInvoke(1, output);
+      output = await this.invoke(key, event);
+      await this.remoteInvoke(key + 1, output);
     }
 
     // 处理结果并返回
