@@ -7,7 +7,7 @@ describe('trigger.http', function () {
         const flow = new Flow(
           {
             triggers: {
-              http: true,
+              http: {},
             },
           },
           function (prev: any) {
@@ -29,7 +29,7 @@ describe('trigger.http', function () {
         const flow = new Flow(
           {
             triggers: {
-              http: true,
+              http: {},
             },
           },
           function () {
@@ -49,7 +49,7 @@ describe('trigger.http', function () {
         {
           mode: 'async',
           triggers: {
-            http: true,
+            http: {},
           },
         },
         function (prev: any) {

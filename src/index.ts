@@ -1,5 +1,19 @@
 import { Logger } from '@faasjs/utils';
 
+interface IResource {
+  name?: string;
+  type?: string;
+  config?: {
+    [key: string]: any;
+  };
+  provider?: {
+    name?: string;
+    type?: string;
+    config?: {
+      [key: string]: any;
+    }
+  };
+}
 interface IConfig {
   mode?: string;
   env?: {
@@ -11,7 +25,7 @@ interface IConfig {
     };
     production?: {
       [key: string]: any;
-    }
+    };
   };
   triggers?: {
     http?: {
@@ -22,13 +36,11 @@ interface IConfig {
           position?: 'header' | 'query' | 'body';
           required?: boolean;
         };
-      }
-    } | boolean;
+      },
+      resource?: IResource;
+    };
   };
-  resourceName?: string;
-  resourceConfig?: {
-    [key: string]: any;
-  };
+  resource?: IResource;
 }
 
 class Flow {
@@ -43,8 +55,7 @@ class Flow {
    * @param config.mode {string} [config.mode=sync] 执行模式，默认为 sync 同步执行，支持 async 异步执行
    * @param config.triggers {object=} 触发器配置
    * @param config.env {object=} 环境变量，默认支持 defaults、testing 和 production
-   * @param config.resourceName {string=} 云资源名
-   * @param config.resourceConfig {object=} 云资源配置，将覆盖默认的云资源配置项
+   * @param config.resource {IResource=} 云函数对应的云资源配置
    * @param args {step[]} 步骤数组
    */
   constructor(config: IConfig, ...args: any) {
@@ -108,6 +119,8 @@ class Flow {
 
   public async remoteInvoke(index: number, prev: any) {
     this.logger.debug('remoteInvoke #%i with %o', index, prev);
+
+    this.logger.error('no provider found');
   }
 
   private async run(prev: any) {
