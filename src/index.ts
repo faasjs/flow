@@ -1,4 +1,8 @@
-import { Logger } from '@faasjs/utils';
+import { deepMerge, Logger } from '@faasjs/utils';
+
+import { existsSync } from 'fs';
+import asyncInvokeTrigger from './triggers/invoke/async';
+import syncInvokeTrigger from './triggers/invoke/sync';
 
 interface IResource {
   name?: string;
@@ -16,6 +20,7 @@ interface IResource {
 }
 interface IConfig {
   mode?: string;
+  name?: string;
   env?: {
     defaults: {
       [key: string]: any;
@@ -38,21 +43,40 @@ interface IConfig {
         };
       },
       resource?: IResource;
+      handler?: (flow: Flow, trigger: any, data: {
+        event: any;
+        context: {
+          history: IStack[];
+          current: IStack;
+        };
+        orgin: {
+          event: any;
+          context: any;
+        }
+        [key: string]: any;
+      }) => any;
     };
+    [key: string]: any;
   };
   resource?: IResource;
+}
+
+interface IStack {
+  type: string;
+  id: string;
+  time: number;
 }
 
 class Flow {
   public config: IConfig;
   public steps: any[];
   public logger: Logger;
-  public currentStepIndex: number;
 
   /**
    * 新建流程
    * @param config {object} 配置项
    * @param config.mode {string} [config.mode=sync] 执行模式，默认为 sync 同步执行，支持 async 异步执行
+   * @param config.name {string=} 流程名，不设置时以 文件夹名/文件名 的形式作为流程名
    * @param config.triggers {object=} 触发器配置
    * @param config.env {object=} 环境变量，默认支持 defaults、testing 和 production
    * @param config.resource {IResource=} 云函数对应的云资源配置
@@ -65,219 +89,157 @@ class Flow {
       throw Error('Step required');
     }
 
-    this.steps = Array.from(args);
-
-    this.config = Object.assign({ mode: 'sync', triggers: {}, resourceConfig: {} }, config);
-
-    this.currentStepIndex = -1;
-  }
-
-  public createTrigger(type: string, key?: any) {
-    return async (event: any, context: any) => {
-      this.logger.debug('trigger %s with %o %o', type, event, context);
-
-      this.currentStepIndex = -1;
-
-      let lastResult: any;
-
-      switch (type) {
-        case 'invoke':
-          lastResult = await this.invokeTrigger(key, event, context);
-          break;
-        case 'http':
-          lastResult = await this.httpTrigger(event, context);
-          break;
+    // 检查步骤
+    this.steps = [];
+    for (let i = 0; i < args.length; i++) {
+      if (!args[i]) {
+        throw Error('Unknow step#' + i);
+      } else if (typeof args[i] === 'function') {
+        // 封装函数类步骤
+        const step = Object.create(null);
+        step.handler = args[i];
+        this.steps.push(step);
+      } else if (args[i].handler) {
+        this.steps.push(args[i]);
+      } else {
+        throw Error(`Unknow step#${i}'s type`);
       }
+    }
 
-      return lastResult;
-    };
-  }
+    this.config = deepMerge({ mode: 'sync', triggers: Object.create(null), resource: Object.create(null) }, config);
 
-  public async invoke(index: number, prev: any) {
-    this.logger.debug('invoke #%i with %o', index, prev);
+    // 检查触发器
+    for (const key in this.config.triggers) {
+      if (this.config.triggers.hasOwnProperty(key)) {
+        const trigger = this.config.triggers[key];
+        if (!trigger.resource) {
+          trigger.resource = Object.create(null);
+        }
 
-    if (index < 0) {
-      const results: any = {};
-      let lastResult: any = prev;
-      this.currentStepIndex = -1;
+        if (!trigger.handler) {
+          const typePath = trigger.resource.type || key;
+          const paths = [
+            `${process.cwd()}/config/triggers/${typePath}/index.ts`,
+            `${process.cwd()}/node_modules/@faasjs/trigger-${typePath}/lib/index.js`,
+            `${process.cwd()}/node_modules/${typePath}/lib/index.js`,
+            `${process.cwd()}/${typePath}/index.ts`,
+          ];
 
-      for (let i = 0; i < this.steps.length; i++) {
-        this.currentStepIndex = i;
-        const result = await this.run(lastResult);
+          for (const path of paths) {
+            if (existsSync(path)) {
+              trigger.handler = require(path).default;
+            }
+          }
 
-        results[i] = result;
-        lastResult = result;
+          if (!trigger.handler || typeof trigger.handler !== 'function') {
+            throw Error(`Unknow trigger#${key}\nfind paths:\n${paths.join('\n')}`);
+          }
+        }
       }
-
-      return results;
-    } else {
-      this.currentStepIndex = index;
-
-      return await this.run(prev);
     }
   }
 
-  public async remoteInvoke(index: number, prev: any) {
-    this.logger.debug('remoteInvoke #%i with %o', index, prev);
+  public createTrigger(type?: string | number) {
+    return async (event: any, context: any) => {
+      // type 未定义或为数字时，强制为 invoke 类型
+      let index = -1;
+      if (typeof type === 'undefined' || type === null) {
+        type = 'invoke';
+      } else if (typeof type === 'number') {
+        index = type;
+        type = 'invoke';
+      }
+      // 记录原始数据
+      const origin = {
+        context,
+        event,
+        type,
+      };
+      this.logger.debug('%s: %i %o', type, index, origin);
 
-    this.logger.error('no provider found');
+      // 处理服务商原始数据
+      const processed = await this.processOrigin(origin);
+
+      this.logger.debug('processed: %o', processed);
+
+      // 执行步骤
+      if (type === 'invoke') {
+        // invoke 触发时，使用内置触发器
+        if (this.config.mode === 'sync') {
+          return await syncInvokeTrigger(this, index, processed);
+        } else {
+          return await asyncInvokeTrigger(this, index, processed);
+        }
+      } else {
+        const trigger = this.config.triggers![type];
+        return await trigger.handler(this, trigger, processed);
+      }
+    };
   }
 
-  private async run(prev: any) {
-    this.logger.debug('run step#%i with %o', this.currentStepIndex, prev);
+  public async invoke(index: number, data: any) {
+    this.logger.debug('invoke step#%i with %o', index, data);
 
-    const step = this.steps[this.currentStepIndex];
+    const step = this.steps[index];
 
     let result;
 
-    const type = Object.prototype.toString.call(step);
-
-    switch (type) {
-      case '[object Function]':
-        try {
-          result = await step.call(this, prev);
-        } catch (error) {
-          this.logger.error(error);
-          result = error;
-        }
-        break;
-      default:
-        throw Error('Unknow step type: ' + type);
+    try {
+      result = await step.handler.call(data, data.event, data.context);
+    } catch (error) {
+      this.logger.error(error);
+      result = error;
     }
 
     return result;
   }
 
-  private async invokeTrigger(key: any, event: any, context: any) {
-    this.logger.debug('invokeTrigger %o %o %o', key, event, context);
+  public async remoteInvoke(index: number, prev: any) {
+    this.logger.debug('remoteInvoke: #%i with %o', index, prev);
 
-    // 触发流程
-    let output: any;
-    if (this.config.mode === 'sync') {
-      const results = await this.invoke(-1, event);
-      output = results[this.currentStepIndex];
-    } else if (this.config.mode === 'async') {
-      // 异步模式只执行第一个步骤
-      output = await this.invoke(key, event);
-      await this.remoteInvoke(key + 1, output);
-    }
-
-    // 处理结果并返回
-    return output;
+    this.logger.error('remoteInvoke: no provider found');
   }
 
-  private async httpTrigger(event: any, context: any) {
-    this.logger.debug('httpTrigger %o %o', event, context);
+  /**
+   * 处理原始数据
+   * @param origin {object} 原始数据
+   * @param origin.type {string | number} 触发类型
+   * @param origin.event {object} 事件数据
+   * @param origin.context {object} 环境数据
+   */
+  private async processOrigin({ type, event, context }: { type: string | number, event: any, context: any }):
+    Promise<{
+      context: {
+        history: IStack[],
+        current: IStack,
+      },
+      event: any,
+      origin: {
+        context: any,
+        event: any,
+        type: string | number,
+      },
+      type: string,
+    }> {
+    this.logger.warn('processOrigin: no provider found');
 
-    // 预处理输入内容
-    const input: {
-      body: any;
-      header: any;
-      method: string;
-      query: any;
-      param: any;
-    } = {
-      body: event.body || null,
-      header: event.headers || {},
-      method: event.httpMethod || 'GET',
-      param: {},
-      query: event.queryString || {},
+    return {
+      context: {
+        current: {
+          id: new Date().getTime().toString(),
+          time: new Date().getTime(),
+          type: type.toString(),
+        },
+        history: [],
+      },
+      event,
+      origin: {
+        context,
+        event,
+        type,
+      },
+      type: type.toString(),
     };
-
-    if (input.header['Content-Type'] && input.header['Content-Type'].includes('application/json')) {
-      input.body = JSON.parse(input.body);
-    }
-
-    const outputHeaders = {
-      'Content-Type': 'application/json; charset=UTF-8',
-      // 'X-Request-Id': context.request_id
-    };
-
-    let output: any = null;
-
-    // 输入项校验
-    if (this.config.triggers && typeof this.config.triggers.http === 'object') {
-      // 校验请求方法
-      if (this.config.triggers.http.method && input.method !== this.config.triggers.http.method) {
-        output = Error('Wrong method');
-      }
-
-      // 校验参数
-      if (this.config.triggers.http.param) {
-        for (const key in this.config.triggers.http.param) {
-          if (this.config.triggers.http.param.hasOwnProperty(key)) {
-            const config = this.config.triggers.http.param[key];
-
-            // 默认从 body 中读取参数
-            if (!config.position) {
-              config.position = 'body';
-            }
-
-            // 必填项校验
-            if (config.required &&
-              (
-                !input[config.position] ||
-                typeof input[config.position][key] === 'undefined' ||
-                input[config.position][key] === null
-              )
-            ) {
-              output = Error(`${key} required`);
-              break;
-            }
-
-            const value = input[config.position][key];
-
-            // 将通过校验的数据存入 input.param
-            input.param[key] = value;
-          }
-        }
-      }
-    }
-
-    // 若输入项校验通过，则触发流程
-    if (output === null) {
-      if (this.config.mode === 'sync') {
-        // 同步执行模式，执行全部步骤
-        const results = await this.invoke(-1, input);
-        output = results[this.currentStepIndex];
-        this.logger.debug('result %o', output);
-      } else if (this.config.mode === 'async') {
-        // 异步模式，异步调用下一步，无返回
-        await this.remoteInvoke(0, input);
-        output = null;
-      }
-    }
-
-    // 处理结果并返回
-    if (typeof output === 'undefined' || output === null) {
-      // 没有结果或结果内容为空时，直接返回 201
-      output = {
-        statusCode: 201,
-      };
-    } else if (output instanceof Error) {
-      // 当结果是错误类型时
-      output = {
-        body: { error: { message: output.message } },
-        statusCode: 500,
-      };
-    } else if (!output.statusCode) {
-      output = {
-        body: { data: output },
-        statusCode: 200,
-      };
-    }
-
-    // 注入公共响应头
-    output.headers = Object.assign(output.headers || {}, outputHeaders);
-
-    // 序列化 body
-    if (typeof output.body !== 'string') {
-      output.body = JSON.stringify(output.body);
-    }
-
-    // 返回响应
-    this.logger.debug('response %o', output);
-    return output;
   }
 }
 
