@@ -9,8 +9,5 @@
       }
     ],
     "@babel/preset-typescript"
-  ],
-  "plugins": [
-    "@babel/plugin-transform-typescript"
   ]
 }
