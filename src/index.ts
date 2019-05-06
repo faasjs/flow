@@ -139,6 +139,10 @@ class Flow {
     }
   }
 
+  /**
+   * 创建触发函数
+   * @param type {string | number} 类型，若为数字则表示为触发第几步步骤
+   */
   public createTrigger(type?: string | number) {
     return async (event: any, context: any) => {
       // type 未定义或为数字时，强制为 invoke 类型
@@ -161,6 +165,7 @@ class Flow {
       const processed = await this.processOrigin(origin);
 
       this.logger.debug('processed: %o', processed);
+      this.logger.label = processed.context.trackId;
 
       // 执行步骤
       if (type === 'invoke') {
@@ -177,6 +182,11 @@ class Flow {
     };
   }
 
+  /**
+   * 立即执行步骤
+   * @param index {number} 步骤次序
+   * @param data {object} 数据
+   */
   public async invoke(index: number, data: any) {
     this.logger.debug('invoke step#%i with %o', index, data);
 
@@ -194,8 +204,13 @@ class Flow {
     return result;
   }
 
-  public async remoteInvoke(index: number, prev: any) {
-    this.logger.debug('remoteInvoke: #%i with %o', index, prev);
+  /**
+   * 异步远程执行步骤
+   * @param index {number} 步骤次序
+   * @param data {object} 数据
+   */
+  public async remoteInvoke(index: number, data: any) {
+    this.logger.debug('remoteInvoke: #%i with %o', index, data);
 
     this.logger.error('remoteInvoke: no provider found');
   }
@@ -203,23 +218,24 @@ class Flow {
   /**
    * 处理原始数据
    * @param origin {object} 原始数据
-   * @param origin.type {string | number} 触发类型
+   * @param origin.type {string} 触发类型
    * @param origin.event {object} 事件数据
    * @param origin.context {object} 环境数据
    */
-  private async processOrigin({ type, event, context }: { type: string | number, event: any, context: any }):
+  protected async processOrigin({ type, event, context }: { type: string, event: any, context: any }):
     Promise<{
       context: {
-        history: IStack[],
-        current: IStack,
+        trackId: string;
+        history: IStack[];
+        current: IStack;
       },
-      event: any,
+      event: any;
       origin: {
-        context: any,
-        event: any,
-        type: string | number,
-      },
-      type: string,
+        context: any;
+        event: any;
+        type: string;
+      };
+      type: string;
     }> {
     this.logger.warn('processOrigin: no provider found');
 
@@ -228,9 +244,10 @@ class Flow {
         current: {
           id: new Date().getTime().toString(),
           time: new Date().getTime(),
-          type: type.toString(),
+          type,
         },
         history: [],
+        trackId: new Date().getTime().toString(),
       },
       event,
       origin: {
@@ -238,7 +255,7 @@ class Flow {
         event,
         type,
       },
-      type: type.toString(),
+      type,
     };
   }
 }

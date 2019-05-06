@@ -5,6 +5,9 @@
 
 * [Flow](#Flow)
     * [new Flow(config, ...args)](#new_Flow_new)
+    * [.createTrigger(type)](#Flow+createTrigger)
+    * [.invoke(index, data)](#Flow+invoke)
+    * [.remoteInvoke(index, data)](#Flow+remoteInvoke)
     * [.processOrigin(origin)](#Flow+processOrigin)
 
 <a name="new_Flow_new"></a>
@@ -23,6 +26,41 @@
 | [config.resource] | <code>IResource</code> | 云函数对应的云资源配置 |
 | ...args | <code>Array.&lt;step&gt;</code> | 步骤数组 |
 
+<a name="Flow+createTrigger"></a>
+
+### flow.createTrigger(type)
+创建触发函数
+
+**Kind**: instance method of [<code>Flow</code>](#Flow)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| type | <code>string</code> \| <code>number</code> | 类型，若为数字则表示为触发第几步步骤 |
+
+<a name="Flow+invoke"></a>
+
+### flow.invoke(index, data)
+立即执行步骤
+
+**Kind**: instance method of [<code>Flow</code>](#Flow)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| index | <code>number</code> | 步骤次序 |
+| data | <code>object</code> | 数据 |
+
+<a name="Flow+remoteInvoke"></a>
+
+### flow.remoteInvoke(index, data)
+异步远程执行步骤
+
+**Kind**: instance method of [<code>Flow</code>](#Flow)  
+
+| Param | Type | Description |
+| --- | --- | --- |
+| index | <code>number</code> | 步骤次序 |
+| data | <code>object</code> | 数据 |
+
 <a name="Flow+processOrigin"></a>
 
 ### flow.processOrigin(origin)
@@ -33,7 +71,7 @@
 | Param | Type | Description |
 | --- | --- | --- |
 | origin | <code>object</code> | 原始数据 |
-| origin.type | <code>string</code> \| <code>number</code> | 触发类型 |
+| origin.type | <code>string</code> | 触发类型 |
 | origin.event | <code>object</code> | 事件数据 |
 | origin.context | <code>object</code> | 环境数据 |
 
