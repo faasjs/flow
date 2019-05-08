@@ -1,16 +1,16 @@
 import Flow from '../../index';
 
-interface IStack {
+interface Stack {
   type: string;
   id: string;
   time: number;
 }
 
-export default async function asyncInvokeTrigger(flow: Flow, index: number, data: {
+export default async function asyncInvokeTrigger (flow: Flow, index: number, data: {
   event: any;
   context: {
-    history: IStack[];
-    current: IStack;
+    history: Stack[];
+    current: Stack;
   };
   origin: {
     context: any;
@@ -19,6 +19,11 @@ export default async function asyncInvokeTrigger(flow: Flow, index: number, data
   [key: string]: any;
 }) {
   flow.logger.debug('asyncInvokeTrigger: begin %i %o', index, data);
+
+  // 异步模式下，-1 步骤改成仅执行第一步
+  if (index < 0) {
+    index = 0;
+  }
 
   // 执行当前步骤
   data.event = await flow.invoke(index, data);

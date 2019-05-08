@@ -1,16 +1,16 @@
 import Flow from '../../index';
 
-interface IStack {
+interface Stack {
   type: string;
   id: string;
   time: number;
 }
 
-export default async function syncInvokeTrigger(flow: Flow, index: number, data: {
+export default async function syncInvokeTrigger (flow: Flow, index: number, data: {
   event: any;
   context: {
-    history: IStack[];
-    current: IStack;
+    history: Stack[];
+    current: Stack;
   };
   origin: {
     context: any;

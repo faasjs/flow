@@ -4,7 +4,7 @@
 **Kind**: global class  
 
 * [Flow](#Flow)
-    * [new Flow(config, ...args)](#new_Flow_new)
+    * [new Flow(config, ...steps)](#new_Flow_new)
     * [.createTrigger(type)](#Flow+createTrigger)
     * [.invoke(index, data)](#Flow+invoke)
     * [.remoteInvoke(index, data)](#Flow+remoteInvoke)
@@ -12,7 +12,7 @@
 
 <a name="new_Flow_new"></a>
 
-### new Flow(config, ...args)
+### new Flow(config, ...steps)
 新建流程
 
 
@@ -23,8 +23,8 @@
 | [config.name] | <code>string</code> | 流程名，不设置时以 文件夹名/文件名 的形式作为流程名 |
 | [config.triggers] | <code>object</code> | 触发器配置 |
 | [config.env] | <code>object</code> | 环境变量，默认支持 defaults、testing 和 production |
-| [config.resource] | <code>IResource</code> | 云函数对应的云资源配置 |
-| ...args | <code>Array.&lt;step&gt;</code> | 步骤数组 |
+| [config.resource] | <code>Resource</code> | 云函数对应的云资源配置 |
+| ...steps | <code>Array.&lt;step&gt;</code> | 步骤数组 |
 
 <a name="Flow+createTrigger"></a>
 

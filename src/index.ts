@@ -4,7 +4,7 @@ import { existsSync } from 'fs';
 import asyncInvokeTrigger from './triggers/invoke/async';
 import syncInvokeTrigger from './triggers/invoke/sync';
 
-interface IResource {
+interface Resource {
   name?: string;
   type?: string;
   config?: {
@@ -15,10 +15,28 @@ interface IResource {
     type?: string;
     config?: {
       [key: string]: any;
-    }
+    };
   };
 }
-interface IConfig {
+
+interface Trigger {
+  resource?: Resource;
+  handler?: (flow: Flow, trigger: any, data: {
+    event: any;
+    context: {
+      history: Stack[];
+      current: Stack;
+    };
+    origin: {
+      event: any;
+      context: any;
+    };
+    [key: string]: any;
+  }) => any;
+  [key: string]: any;
+}
+
+interface Config {
   mode?: string;
   name?: string;
   env?: {
@@ -33,42 +51,20 @@ interface IConfig {
     };
   };
   triggers?: {
-    http?: {
-      method?: string;
-      path?: string;
-      param?: {
-        [key: string]: {
-          position?: 'header' | 'query' | 'body';
-          required?: boolean;
-        };
-      },
-      resource?: IResource;
-      handler?: (flow: Flow, trigger: any, data: {
-        event: any;
-        context: {
-          history: IStack[];
-          current: IStack;
-        };
-        orgin: {
-          event: any;
-          context: any;
-        }
-        [key: string]: any;
-      }) => any;
-    };
-    [key: string]: any;
+    [key: string]: Trigger;
   };
-  resource?: IResource;
+  resource?: Resource;
 }
 
-interface IStack {
+interface Stack {
   type: string;
   id: string;
   time: number;
 }
 
 class Flow {
-  public config: IConfig;
+  public stagging: string;
+  public config: Config;
   public steps: any[];
   public logger: Logger;
 
@@ -79,45 +75,51 @@ class Flow {
    * @param config.name {string=} 流程名，不设置时以 文件夹名/文件名 的形式作为流程名
    * @param config.triggers {object=} 触发器配置
    * @param config.env {object=} 环境变量，默认支持 defaults、testing 和 production
-   * @param config.resource {IResource=} 云函数对应的云资源配置
-   * @param args {step[]} 步骤数组
+   * @param config.resource {Resource=} 云函数对应的云资源配置
+   * @param steps {step[]} 步骤数组
    */
-  constructor(config: IConfig, ...args: any) {
+  constructor (config: Config, ...steps: any) {
     this.logger = new Logger('@faasjs/flow');
 
-    if (!args.length) {
+    if (!steps.length) {
       throw Error('Step required');
     }
 
+    this.stagging = process.env.stagging || 'testing';
+
     // 检查步骤
     this.steps = [];
-    for (let i = 0; i < args.length; i++) {
-      if (!args[i]) {
-        throw Error('Unknow step#' + i);
-      } else if (typeof args[i] === 'function') {
+    for (const step of steps) {
+      if (!step) {
+        throw Error('Unknow step#' + steps.indexOf(step));
+      } else if (typeof step === 'function') {
         // 封装函数类步骤
-        const step = Object.create(null);
-        step.handler = args[i];
+        const stepObject = Object.create(null);
+        stepObject.handler = step;
+        this.steps.push(stepObject);
+      } else if (step.handler) {
         this.steps.push(step);
-      } else if (args[i].handler) {
-        this.steps.push(args[i]);
       } else {
-        throw Error(`Unknow step#${i}'s type`);
+        throw Error(`Unknow step#${steps.indexOf(step)}'s type`);
       }
     }
 
-    this.config = deepMerge({ mode: 'sync', triggers: Object.create(null), resource: Object.create(null) }, config);
+    this.config = deepMerge({
+      mode: 'sync',
+      triggers: Object.create(null),
+      resource: Object.create(null)
+    }, config);
 
     // 检查触发器
     for (const key in this.config.triggers) {
       if (this.config.triggers.hasOwnProperty(key)) {
-        const trigger = this.config.triggers[key];
+        const trigger = this.config.triggers[key as string];
         if (!trigger.resource) {
           trigger.resource = Object.create(null);
         }
 
         if (!trigger.handler) {
-          const typePath = trigger.resource.type || key;
+          const typePath = trigger.resource!.type || key;
           const paths = [
             `${process.cwd()}/config/triggers/${typePath}/index.ts`,
             `${process.cwd()}/node_modules/@faasjs/trigger-${typePath}/lib/index.js`,
@@ -127,7 +129,9 @@ class Flow {
 
           for (const path of paths) {
             if (existsSync(path)) {
+              // eslint-disable-next-line security/detect-non-literal-require
               trigger.handler = require(path).default;
+              break;
             }
           }
 
@@ -143,7 +147,7 @@ class Flow {
    * 创建触发函数
    * @param type {string | number} 类型，若为数字则表示为触发第几步步骤
    */
-  public createTrigger(type?: string | number) {
+  public createTrigger (type?: string | number) {
     return async (event: any, context: any) => {
       // type 未定义或为数字时，强制为 invoke 类型
       let index = -1;
@@ -176,8 +180,8 @@ class Flow {
           return await asyncInvokeTrigger(this, index, processed);
         }
       } else {
-        const trigger = this.config.triggers![type];
-        return await trigger.handler(this, trigger, processed);
+        const trigger: Trigger = this.config.triggers![type as string];
+        return await trigger.handler!(this, trigger, processed);
       }
     };
   }
@@ -187,10 +191,18 @@ class Flow {
    * @param index {number} 步骤次序
    * @param data {object} 数据
    */
-  public async invoke(index: number, data: any) {
+  public async invoke (index: number, data: any) {
     this.logger.debug('invoke step#%i with %o', index, data);
 
-    const step = this.steps[index];
+    const step = this.steps[index as number];
+
+    if (!step) {
+      throw Error(`step#${index} not found.`);
+    }
+
+    if (!step.handler || typeof step.handler !== 'function') {
+      throw Error(`step#${index}'s handler not found.`);
+    }
 
     let result;
 
@@ -209,7 +221,7 @@ class Flow {
    * @param index {number} 步骤次序
    * @param data {object} 数据
    */
-  public async remoteInvoke(index: number, data: any) {
+  public async remoteInvoke (index: number, data: any) {
     this.logger.debug('remoteInvoke: #%i with %o', index, data);
 
     this.logger.error('remoteInvoke: no provider found');
@@ -222,21 +234,21 @@ class Flow {
    * @param origin.event {object} 事件数据
    * @param origin.context {object} 环境数据
    */
-  protected async processOrigin({ type, event, context }: { type: string, event: any, context: any }):
-    Promise<{
-      context: {
-        trackId: string;
-        history: IStack[];
-        current: IStack;
-      },
+  protected async processOrigin ({ type, event, context }: { type: string; event: any; context: any }):
+  Promise<{
+    context: {
+      trackId: string;
+      history: Stack[];
+      current: Stack;
+    };
+    event: any;
+    origin: {
+      context: any;
       event: any;
-      origin: {
-        context: any;
-        event: any;
-        type: string;
-      };
       type: string;
-    }> {
+    };
+    type: string;
+  }> {
     this.logger.warn('processOrigin: no provider found');
 
     return {
