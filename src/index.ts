@@ -62,7 +62,6 @@ interface Stack {
 
 class Flow {
   public stagging: string;
-  public root: string;
   public config: Config;
   public steps: any[];
   public logger: Logger;
@@ -85,7 +84,6 @@ class Flow {
     }
 
     this.stagging = process.env.stagging || 'testing';
-    this.root = process.cwd();
 
     // 检查步骤
     this.steps = [];
