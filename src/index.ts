@@ -120,11 +120,11 @@ class Flow {
           const typePath = trigger.resource!.type || key;
           try {
             // eslint-disable-next-line security/detect-non-literal-require
-            trigger.handler = require(`@faasjs/trigger-${typePath}`);
+            trigger.handler = require(`@faasjs/trigger-${typePath}`).default;
           } catch (e) {
             try {
               // eslint-disable-next-line security/detect-non-literal-require
-              trigger.handler = require(typePath);
+              trigger.handler = require(typePath).default;
             } catch (e) {
               throw Error(`Unknow trigger: ${key} ${typePath}`);
             }
