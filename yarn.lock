@@ -649,6 +649,11 @@
     exec-sh "^0.3.2"
     minimist "^1.2.0"
 
+"@faasjs/deep_merge@0.0.0-alpha.0":
+  version "0.0.0-alpha.0"
+  resolved "https://registry.npmjs.org/@faasjs/deep_merge/-/deep_merge-0.0.0-alpha.0.tgz#ef85c18d4e1b35e08851558b3957b5ecbe5f9397"
+  integrity sha512-2ybIVnBCmYMfFC0kQ03u2wOhPRtckpcULR5V1/a79otHLau/KfluW2R21pofEyaoFzLkksY1OITdhAzdiBZeuQ==
+
 "@faasjs/eslint-config-recommended@0.0.0-alpha.1":
   version "0.0.0-alpha.1"
   resolved "https://registry.npm.taobao.org/@faasjs/eslint-config-recommended/download/@faasjs/eslint-config-recommended-0.0.0-alpha.1.tgz#3888e4e50e1eac30e9ee500e37f52bfceb5916c0"
@@ -664,21 +669,6 @@
   version "0.0.0-alpha.0"
   resolved "https://registry.npm.taobao.org/@faasjs/logger/download/@faasjs/logger-0.0.0-alpha.0.tgz#014468d1031cce285a05dd8d668a5e44ac732589"
   integrity sha1-AURo0QMczihaBd2NZopeRKxzJYk=
-
-"@faasjs/request@0.0.0-alpha.0":
-  version "0.0.0-alpha.0"
-  resolved "https://registry.npm.taobao.org/@faasjs/request/download/@faasjs/request-0.0.0-alpha.0.tgz#fb910ad73caf9371ed9ba0f809595ed0296c9f27"
-  integrity sha1-+5EK1zyvk3Htm6D4CVle0Clsnyc=
-  dependencies:
-    "@faasjs/logger" "0.0.0-alpha.0"
-
-"@faasjs/utils@0.0.0-alpha.4":
-  version "0.0.0-alpha.4"
-  resolved "https://registry.npm.taobao.org/@faasjs/utils/download/@faasjs/utils-0.0.0-alpha.4.tgz#4ac818232a1a624450748134813aec91e6e07762"
-  integrity sha1-SsgYIyoaYkRQdIE0gTrskebgd2I=
-  dependencies:
-    "@faasjs/logger" "0.0.0-alpha.0"
-    "@faasjs/request" "0.0.0-alpha.0"
 
 "@jest/console@^24.7.1":
   version "24.7.1"

@@ -1,4 +1,4 @@
-import { deepMerge } from '@faasjs/utils';
+import deepMerge from '@faasjs/deep_merge';
 import Logger from '@faasjs/logger';
 import asyncInvokeTrigger from './triggers/invoke/async';
 import syncInvokeTrigger from './triggers/invoke/sync';
