@@ -1,6 +1,4 @@
 import { deepMerge, Logger } from '@faasjs/utils';
-
-import { existsSync } from 'fs';
 import asyncInvokeTrigger from './triggers/invoke/async';
 import syncInvokeTrigger from './triggers/invoke/sync';
 
@@ -64,6 +62,7 @@ interface Stack {
 
 class Flow {
   public stagging: string;
+  public root: string;
   public config: Config;
   public steps: any[];
   public logger: Logger;
@@ -86,6 +85,7 @@ class Flow {
     }
 
     this.stagging = process.env.stagging || 'testing';
+    this.root = process.cwd();
 
     // 检查步骤
     this.steps = [];
@@ -120,23 +120,16 @@ class Flow {
 
         if (!trigger.handler) {
           const typePath = trigger.resource!.type || key;
-          const paths = [
-            `${process.cwd()}/config/triggers/${typePath}/index.ts`,
-            `${process.cwd()}/node_modules/@faasjs/trigger-${typePath}/lib/index.js`,
-            `${process.cwd()}/node_modules/${typePath}/lib/index.js`,
-            `${process.cwd()}/${typePath}/index.ts`,
-          ];
-
-          for (const path of paths) {
-            if (existsSync(path)) {
+          try {
+            // eslint-disable-next-line security/detect-non-literal-require
+            trigger.handler = require(`@faasjs/trigger-${typePath}`);
+          } catch (e) {
+            try {
               // eslint-disable-next-line security/detect-non-literal-require
-              trigger.handler = require(path).default;
-              break;
+              trigger.handler = require(typePath);
+            } catch (e) {
+              throw Error(`Unknow trigger: ${key} ${typePath}`);
             }
-          }
-
-          if (!trigger.handler || typeof trigger.handler !== 'function') {
-            throw Error(`Unknow trigger#${key}\nfind paths:\n${paths.join('\n')}`);
           }
         }
       }

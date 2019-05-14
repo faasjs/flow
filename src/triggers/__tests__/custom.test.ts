@@ -6,9 +6,8 @@ describe('trigger.custom', function () {
       {
         triggers: {
           custom: {
-            resource: {
-              type: 'src/triggers/__tests__/custom',
-            },
+            resource: {},
+            handler: require('./custom/index').default
           },
         },
       },

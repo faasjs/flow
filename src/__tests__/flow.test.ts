@@ -18,7 +18,7 @@ describe('flow', function () {
       triggers: {
         unknow: {},
       },
-    }, () => true)).toThrowError('Unknow trigger#unknow');
+    }, () => true)).toThrowError('Unknow trigger: unknow unknow');
   });
 
   test('throw step', async function () {
