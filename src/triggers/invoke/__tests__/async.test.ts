@@ -17,6 +17,7 @@ describe('trigger.asyncInvoke', function () {
   );
 
   test.each([
+    [-1, 1],
     [0, 1],
     [1, 2],
     [2, 3],

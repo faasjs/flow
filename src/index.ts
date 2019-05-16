@@ -131,10 +131,10 @@ class Flow {
               throw Error(`Unknow trigger: ${key} ${typePath}`);
             }
           }
+        }
 
-          if (typeof trigger.handler !== 'function') {
-            throw Error(`Unknow trigger: ${key} ${typePath}`);
-          }
+        if (typeof trigger.handler !== 'function') {
+          throw Error(`Trigger#${key} is not a function`);
         }
       }
     }
@@ -160,10 +160,10 @@ class Flow {
               throw Error(`Unknow resource: ${key} ${typePath}`);
             }
           }
+        }
 
-          if (typeof resource.handler !== 'function') {
-            throw Error(`Unknow resource: ${key} ${typePath}`);
-          }
+        if (typeof resource.handler !== 'function') {
+          throw Error(`Resource#${key} is not a function`);
         }
       }
     }
@@ -174,15 +174,6 @@ class Flow {
    * @param type {string | number} 类型，若为数字则表示为触发第几步步骤
    */
   public createTrigger (type?: string | number) {
-    // 初始化执行时的 this
-    this.helpers = {};
-    for (const key in this.config.resources) {
-      if (this.config.resources.hasOwnProperty(key)) {
-        const resource = this.config.resources[key as string];
-        this.helpers[key as string] = resource.handler!(resource, this);
-      }
-    }
-
     return async (event: any, context: any) => {
       // type 未定义或为数字时，强制为 invoke 类型
       let index = -1;
@@ -199,6 +190,17 @@ class Flow {
         type,
       };
       this.logger.debug('%s: %i %o', type, index, origin);
+
+      // 初始化执行时的 this
+      if (!this.helpers) {
+        this.helpers = {};
+        for (const key in this.config.resources) {
+          if (this.config.resources.hasOwnProperty(key)) {
+            const resource = this.config.resources[key as string];
+            this.helpers[key as string] = resource.handler!(resource, this);
+          }
+        }
+      }
 
       // 处理服务商原始数据
       const processed = await this.processOrigin(origin);
@@ -232,11 +234,7 @@ class Flow {
     const step = this.steps[index as number];
 
     if (!step) {
-      throw Error(`step#${index} not found.`);
-    }
-
-    if (!step.handler || typeof step.handler !== 'function') {
-      throw Error(`step#${index}'s handler not found.`);
+      throw Error(`Step#${index} not found`);
     }
 
     let result;
