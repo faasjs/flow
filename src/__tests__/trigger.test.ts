@@ -2,20 +2,28 @@ import Flow from '../index';
 
 describe('trigger', function () {
   test('unkown', async function () {
-    expect(() => new Flow({
-      triggers: {
-        unknow: {},
-      },
-    }, () => true)).toThrowError('Unknow trigger: unknow unknow');
+    try {
+      await new Flow({
+        triggers: {
+          unknow: {},
+        },
+      }, () => true).createTrigger()({}, {});
+    } catch (error) {
+      expect(error.message).toEqual('Unknow trigger: unknow unknow');
+    }
   });
 
-  test('not a function', function () {
-    expect(() => new Flow({
-      triggers: {
-        unknow: {
-          handler: 1
+  test('not a function', async function () {
+    try {
+      await new Flow({
+        triggers: {
+          unknow: {
+            handler: 1
+          },
         },
-      },
-    }, () => true)).toThrowError('Trigger#unknow is not a function');
+      }, () => true).createTrigger()({}, {});
+    } catch (error) {
+      expect(error.message).toEqual('Trigger#unknow is not a function');
+    }
   });
 });

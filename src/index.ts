@@ -109,64 +109,6 @@ class Flow {
       resource: Object.create(null),
       resources: Object.create(null),
     }, config);
-
-    // 检查触发器
-    for (const key in this.config.triggers) {
-      if (this.config.triggers.hasOwnProperty(key)) {
-        const trigger = this.config.triggers[key as string];
-        if (!trigger.resource) {
-          trigger.resource = Object.create(null);
-        }
-
-        if (!trigger.handler) {
-          const typePath = trigger.resource!.type || key;
-          try {
-            // eslint-disable-next-line security/detect-non-literal-require
-            trigger.handler = require(`@faasjs/trigger-${typePath}`);
-          } catch (e) {
-            try {
-              // eslint-disable-next-line security/detect-non-literal-require
-              trigger.handler = require(typePath);
-            } catch (e) {
-              throw Error(`Unknow trigger: ${key} ${typePath}`);
-            }
-          }
-        }
-
-        if (typeof trigger.handler !== 'function') {
-          throw Error(`Trigger#${key} is not a function`);
-        }
-      }
-    }
-
-    // 检查引用云资源
-    for (const key in this.config.resources) {
-      if (this.config.resources.hasOwnProperty(key)) {
-        const resource = this.config.resources[key as string];
-        if (!resource.resource) {
-          resource.resource = Object.create(null);
-        }
-
-        if (!resource.handler) {
-          const typePath = resource.resource!.type || key;
-          try {
-            // eslint-disable-next-line security/detect-non-literal-require
-            resource.handler = require(`@faasjs/provider-${typePath}`);
-          } catch (e) {
-            try {
-              // eslint-disable-next-line security/detect-non-literal-require
-              resource.handler = require(typePath);
-            } catch (e) {
-              throw Error(`Unknow resource: ${key} ${typePath}`);
-            }
-          }
-        }
-
-        if (typeof resource.handler !== 'function') {
-          throw Error(`Resource#${key} is not a function`);
-        }
-      }
-    }
   }
 
   /**
@@ -191,8 +133,67 @@ class Flow {
       };
       this.logger.debug('%s: %i %o', type, index, origin);
 
-      // 初始化执行时的 this
+      // 容器初始化
       if (!this.helpers) {
+        // 检查触发器
+        for (const key in this.config.triggers) {
+          if (this.config.triggers.hasOwnProperty(key)) {
+            const trigger = this.config.triggers[key as string];
+            if (!trigger.resource) {
+              trigger.resource = Object.create(null);
+            }
+
+            if (!trigger.handler) {
+              const typePath = trigger.resource!.type || key;
+              try {
+                // eslint-disable-next-line security/detect-non-literal-require
+                trigger.handler = require(`@faasjs/trigger-${typePath}`);
+              } catch (e) {
+                try {
+                  // eslint-disable-next-line security/detect-non-literal-require
+                  trigger.handler = require(typePath);
+                } catch (e) {
+                  throw Error(`Unknow trigger: ${key} ${typePath}`);
+                }
+              }
+            }
+
+            if (typeof trigger.handler !== 'function') {
+              throw Error(`Trigger#${key} is not a function`);
+            }
+          }
+        }
+
+        // 检查引用云资源
+        for (const key in this.config.resources) {
+          if (this.config.resources.hasOwnProperty(key)) {
+            const resource = this.config.resources[key as string];
+            if (!resource.resource) {
+              resource.resource = Object.create(null);
+            }
+
+            if (!resource.handler) {
+              const typePath = resource.resource!.type || key;
+              try {
+                // eslint-disable-next-line security/detect-non-literal-require
+                resource.handler = require(`@faasjs/provider-${typePath}`);
+              } catch (e) {
+                try {
+                  // eslint-disable-next-line security/detect-non-literal-require
+                  resource.handler = require(typePath);
+                } catch (e) {
+                  throw Error(`Unknow resource: ${key} ${typePath}`);
+                }
+              }
+            }
+
+            if (typeof resource.handler !== 'function') {
+              throw Error(`Resource#${key} is not a function`);
+            }
+          }
+        }
+
+        // 生成 helpers
         this.helpers = {};
         for (const key in this.config.resources) {
           if (this.config.resources.hasOwnProperty(key)) {
