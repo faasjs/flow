@@ -229,7 +229,7 @@ class Flow {
    * @param data {object} 数据
    */
   public async invoke (index: number, data: any) {
-    this.logger.debug('invoke step#%i with %o', index, data);
+    this.logger.debug('invoke step#%i', index);
 
     const step = this.steps[index as number];
 
@@ -255,7 +255,7 @@ class Flow {
    * @param data {object} 数据
    */
   public async remoteInvoke (index: number, data: any) {
-    this.logger.debug('remoteInvoke: #%i with %o', index, data);
+    this.logger.debug('remoteInvoke: #%i', index);
 
     this.logger.error('remoteInvoke: no provider found');
   }

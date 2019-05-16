@@ -18,7 +18,7 @@ export default async function asyncInvokeTrigger (flow: Flow, index: number, dat
   };
   [key: string]: any;
 }) {
-  flow.logger.debug('asyncInvokeTrigger: begin %i %o', index, data);
+  flow.logger.debug('asyncInvokeTrigger: begin %i', index);
 
   // 异步模式下，-1 步骤改成仅执行第一步
   if (index < 0) {

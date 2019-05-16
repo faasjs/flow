@@ -18,7 +18,7 @@ export default async function syncInvokeTrigger (flow: Flow, index: number, data
   };
   [key: string]: any;
 }) {
-  flow.logger.debug('syncInvokeTrigger: begin %i %o', index, data);
+  flow.logger.debug('syncInvokeTrigger: begin %i', index);
 
   const result: {
     event: any;
