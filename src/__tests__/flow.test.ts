@@ -1,6 +1,6 @@
 import Flow from '../index';
 
-describe('flow', function () {
+describe('step', function () {
   test('no step', function () {
     expect(() => new Flow({})).toThrowError('Step required');
   });
@@ -11,14 +11,6 @@ describe('flow', function () {
 
   test('unknow step type', async function () {
     expect(() => new Flow({}, {})).toThrowError('Unknow step#0\'s type');
-  });
-
-  test('unkown trigger', async function () {
-    expect(() => new Flow({
-      triggers: {
-        unknow: {},
-      },
-    }, () => true)).toThrowError('Unknow trigger: unknow unknow');
   });
 
   test('throw step', async function () {

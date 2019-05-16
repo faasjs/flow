@@ -38,21 +38,17 @@ interface Trigger {
 interface Config {
   mode?: string;
   name?: string;
-  env?: {
-    defaults: {
-      [key: string]: any;
-    };
-    testing?: {
-      [key: string]: any;
-    };
-    production?: {
-      [key: string]: any;
-    };
-  };
   triggers?: {
     [key: string]: Trigger;
   };
   resource?: Resource;
+  resources?: {
+    [key: string]: {
+      resource?: Resource;
+      handler?: (...args: any) => any;
+      [key: string]: any;
+    };
+  };
 }
 
 interface Stack {
@@ -66,6 +62,9 @@ class Flow {
   public config: Config;
   public steps: any[];
   public logger: Logger;
+  public helpers?: {
+    [key: string]: any;
+  };
 
   /**
    * 新建流程
@@ -73,6 +72,7 @@ class Flow {
    * @param config.mode {string} [config.mode=sync] 执行模式，默认为 sync 同步执行，支持 async 异步执行
    * @param config.name {string=} 流程名，不设置时以 文件夹名/文件名 的形式作为流程名
    * @param config.triggers {object=} 触发器配置
+   * @param config.resources {object=} 额外引用的云资源
    * @param config.env {object=} 环境变量，默认支持 defaults、testing 和 production
    * @param config.resource {Resource=} 云函数对应的云资源配置
    * @param steps {step[]} 步骤数组
@@ -106,7 +106,8 @@ class Flow {
     this.config = deepMerge({
       mode: 'sync',
       triggers: Object.create(null),
-      resource: Object.create(null)
+      resource: Object.create(null),
+      resources: Object.create(null),
     }, config);
 
     // 检查触发器
@@ -137,6 +138,35 @@ class Flow {
         }
       }
     }
+
+    // 检查引用云资源
+    for (const key in this.config.resources) {
+      if (this.config.resources.hasOwnProperty(key)) {
+        const resource = this.config.resources[key as string];
+        if (!resource.resource) {
+          resource.resource = Object.create(null);
+        }
+
+        if (!resource.handler) {
+          const typePath = resource.resource!.type || key;
+          try {
+            // eslint-disable-next-line security/detect-non-literal-require
+            resource.handler = require(`@faasjs/provider-${typePath}`);
+          } catch (e) {
+            try {
+              // eslint-disable-next-line security/detect-non-literal-require
+              resource.handler = require(typePath);
+            } catch (e) {
+              throw Error(`Unknow resource: ${key} ${typePath}`);
+            }
+          }
+
+          if (typeof resource.handler !== 'function') {
+            throw Error(`Unknow resource: ${key} ${typePath}`);
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -144,6 +174,15 @@ class Flow {
    * @param type {string | number} 类型，若为数字则表示为触发第几步步骤
    */
   public createTrigger (type?: string | number) {
+    // 初始化执行时的 this
+    this.helpers = {};
+    for (const key in this.config.resources) {
+      if (this.config.resources.hasOwnProperty(key)) {
+        const resource = this.config.resources[key as string];
+        this.helpers[key as string] = resource.handler!(resource, this);
+      }
+    }
+
     return async (event: any, context: any) => {
       // type 未定义或为数字时，强制为 invoke 类型
       let index = -1;
@@ -203,7 +242,7 @@ class Flow {
     let result;
 
     try {
-      result = await step.handler.call(data, data.event, data.context);
+      result = await step.handler.call(this.helpers, data.event, data.context);
     } catch (error) {
       this.logger.error(error);
       result = error;

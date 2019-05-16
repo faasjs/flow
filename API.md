@@ -22,6 +22,7 @@
 | config.mode | <code>string</code> | [config.mode=sync] 执行模式，默认为 sync 同步执行，支持 async 异步执行 |
 | [config.name] | <code>string</code> | 流程名，不设置时以 文件夹名/文件名 的形式作为流程名 |
 | [config.triggers] | <code>object</code> | 触发器配置 |
+| [config.resources] | <code>object</code> | 额外引用的云资源 |
 | [config.env] | <code>object</code> | 环境变量，默认支持 defaults、testing 和 production |
 | [config.resource] | <code>Resource</code> | 云函数对应的云资源配置 |
 | ...steps | <code>Array.&lt;step&gt;</code> | 步骤数组 |
