@@ -144,7 +144,7 @@ class Flow {
             }
 
             if (!trigger.handler) {
-              const typePath = trigger.resource!.type || key;
+              const typePath = trigger.type || key;
               try {
                 // eslint-disable-next-line security/detect-non-literal-require
                 trigger.handler = require(`@faasjs/trigger-${typePath}`);
@@ -173,7 +173,7 @@ class Flow {
             }
 
             if (!resource.handler) {
-              const typePath = resource.resource!.type || key;
+              const typePath = resource.type || key;
               try {
                 // eslint-disable-next-line security/detect-non-literal-require
                 resource.handler = require(`@faasjs/provider-${typePath}`);
