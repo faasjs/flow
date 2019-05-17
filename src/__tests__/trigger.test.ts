@@ -23,7 +23,7 @@ describe('trigger', function () {
         },
       }, () => true).createTrigger()({}, {});
     } catch (error) {
-      expect(error.message).toEqual('Trigger#unknow is not a function');
+      expect(error.message).toEqual('Trigger#unknow<undefined> is not a function');
     }
   });
 });

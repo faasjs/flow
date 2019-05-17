@@ -23,7 +23,7 @@ describe('resources', function () {
         },
       }, () => true).createTrigger()({}, {});
     } catch (error) {
-      expect(error.message).toEqual('Resource#unknow is not a function');
+      expect(error.message).toEqual('Resource#unknow<undefined> is not a function');
     }
   });
 

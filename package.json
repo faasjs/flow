@@ -1,6 +1,6 @@
 {
   "name": "@faasjs/flow",
-  "version": "0.0.0-alpha.19",
+  "version": "0.0.0-alpha.20",
   "license": "MIT",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -10,7 +10,7 @@
     "build": "rm -rf ./lib && rollup -c",
     "test": "jest --expand",
     "doc": "jsdoc2md --files ./lib/index.js > ./API.md",
-    "ci": "yarn lint && yarn test",
+    "ci": "yarn lint && yarn test --silent",
     "commit": "yarn ci && yarn build && yarn doc"
   },
   "files": [
