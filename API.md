@@ -9,6 +9,7 @@
     * [.invoke(index, data)](#Flow+invoke)
     * [.remoteInvoke(index, data)](#Flow+remoteInvoke)
     * [.processOrigin(origin)](#Flow+processOrigin)
+    * [.onMounted()](#Flow+onMounted)
 
 <a name="new_Flow_new"></a>
 
@@ -76,3 +77,9 @@
 | origin.event | <code>object</code> | 事件数据 |
 | origin.context | <code>object</code> | 环境数据 |
 
+<a name="Flow+onMounted"></a>
+
+### flow.onMounted()
+容器实例创建时进行容器实例的初始化
+
+**Kind**: instance method of [<code>Flow</code>](#Flow)  

@@ -14,13 +14,13 @@ describe('step', function () {
   });
 
   test('throw step', async function () {
-    const flow = new Flow({},
+    const trigger = new Flow({},
       function () {
         throw Error('step');
       },
-    );
+    ).createTrigger();
 
-    expect(await flow.invoke(0, {})).toEqual(Error('step'));
+    expect(await trigger({}, {})).toEqual(Error('step'));
   });
 
   test('custom step', async function () {
