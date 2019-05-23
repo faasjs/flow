@@ -23,6 +23,7 @@ interface Trigger {
   handler?: (flow: Flow, trigger: any, data: {
     event: any;
     context: {
+      trackId: string;
       history: Stack[];
       current: Stack;
     };
