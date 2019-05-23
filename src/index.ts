@@ -61,7 +61,8 @@ class Flow {
   public config: Config;
   public steps: any[];
   public logger: Logger;
-  public helpers?: {
+  public mounted: boolean;
+  public helpers: {
     [key: string]: any;
   };
 
@@ -106,6 +107,9 @@ class Flow {
       resource: Object.create(null),
       resources: Object.create(null),
     }, config);
+
+    this.mounted = false;
+    this.helpers = Object.create(null);
   }
 
   /**
@@ -240,7 +244,7 @@ class Flow {
    * 容器实例创建时进行容器实例的初始化
    */
   protected onMounted () {
-    if (!this.helpers) {
+    if (!this.mounted) {
       this.logger.debug('onMounted begin');
 
       // 检查触发器
@@ -306,7 +310,6 @@ class Flow {
       }
 
       // 生成 helpers
-      this.helpers = {};
       for (const key in this.config.resources) {
         if (this.config.resources.hasOwnProperty(key)) {
           const resource = this.config.resources[key as string];
