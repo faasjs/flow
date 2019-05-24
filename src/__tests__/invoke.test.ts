@@ -2,7 +2,11 @@ import Flow from '../index';
 
 describe('invoke', function () {
   test('no found', async function () {
-    const flow = new Flow({}, () => true);
+    const flow = new Flow({
+      resource: {
+        handler: () => 1
+      }
+    }, () => true);
     try {
       await flow.invoke(1, {});
     } catch (error) {

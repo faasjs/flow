@@ -4,6 +4,9 @@ describe('resources', function () {
   test('unkown', async function () {
     try {
       await new Flow({
+        resource: {
+          handler: () => 1
+        },
         resources: {
           unknow: {},
         },
@@ -16,6 +19,9 @@ describe('resources', function () {
   test('not a function', async function () {
     try {
       await new Flow({
+        resource: {
+          handler: () => 1
+        },
         resources: {
           unknow: {
             handler: 1
@@ -29,6 +35,9 @@ describe('resources', function () {
 
   test('should work', async function () {
     const trigger = new Flow({
+      resource: {
+        handler: () => 1
+      },
       resources: {
         custom: {
           handler: function () {
@@ -47,6 +56,9 @@ describe('resources', function () {
 
   test('read flow when invoke', async function () {
     const trigger = new Flow({
+      resource: {
+        handler: () => 1
+      },
       resources: {
         custom: {
           handler: function (opts: any, flow: Flow) {

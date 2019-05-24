@@ -14,10 +14,14 @@ describe('step', function () {
   });
 
   test('throw step', async function () {
-    const trigger = new Flow({},
-      function () {
-        throw Error('step');
+    const trigger = new Flow({
+      resource: {
+        handler: () => 1
       },
+    },
+    function () {
+      throw Error('step');
+    },
     ).createTrigger();
 
     expect(await trigger({}, {})).toEqual(Error('step'));

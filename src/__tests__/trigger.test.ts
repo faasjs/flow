@@ -2,7 +2,11 @@ import Flow from '../index';
 
 describe('trigger', function () {
   test('mounted', async function () {
-    const flow = new Flow({}, () => true);
+    const flow = new Flow({
+      resource: {
+        handler: () => 1
+      }
+    }, () => true);
     const trigger = flow.createTrigger();
 
     expect(flow.mounted).toBeFalsy();
@@ -15,6 +19,9 @@ describe('trigger', function () {
   test('unkown', async function () {
     try {
       await new Flow({
+        resource: {
+          handler: () => 1
+        },
         triggers: {
           unknow: {},
         },
@@ -27,6 +34,9 @@ describe('trigger', function () {
   test('not a function', async function () {
     try {
       await new Flow({
+        resource: {
+          handler: () => 1
+        },
         triggers: {
           unknow: {
             handler: 1

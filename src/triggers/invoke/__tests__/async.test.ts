@@ -4,6 +4,9 @@ describe('trigger.asyncInvoke', function () {
   const flow = new Flow(
     {
       mode: 'async',
+      resource: {
+        handler: () => 1
+      }
     },
     function (prev: any) {
       return prev + 1;

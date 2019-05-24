@@ -4,6 +4,9 @@ describe('trigger.custom', function () {
   test('should work', async function () {
     const flow = new Flow(
       {
+        resource: {
+          handler: () => 1
+        },
         triggers: {
           custom: {
             resource: {},

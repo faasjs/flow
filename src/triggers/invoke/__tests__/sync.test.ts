@@ -2,7 +2,11 @@ import Flow from '../../../index';
 
 describe('trigger.syncInvoke', function () {
   const flow = new Flow(
-    {},
+    {
+      resource: {
+        handler: () => 1
+      }
+    },
     function (prev: any) {
       return prev + 1;
     },

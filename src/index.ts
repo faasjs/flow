@@ -106,11 +106,7 @@ class Flow {
 
     this.mode = config.mode || 'sync';
     this.name = config.name;
-    this.resource = config.resource || {
-      handler: () => {
-        this.logger.error('Fake function resource');
-      }
-    };
+    this.resource = config.resource || Object.create(null);
     this.triggers = config.triggers || Object.create(null);
     this.resources = config.resources || Object.create(null);
 
