@@ -1,4 +1,3 @@
-import deepMerge from '@faasjs/deep_merge';
 import Logger from '@faasjs/logger';
 import asyncInvokeTrigger from './triggers/invoke/async';
 import syncInvokeTrigger from './triggers/invoke/sync';
@@ -16,6 +15,7 @@ interface Resource {
       [key: string]: any;
     };
   };
+  handler?: (...args: any) => any;
 }
 
 interface Trigger {
@@ -36,22 +36,6 @@ interface Trigger {
   [key: string]: any;
 }
 
-interface Config {
-  mode?: string;
-  name?: string;
-  triggers?: {
-    [key: string]: Trigger;
-  };
-  resource?: Resource;
-  resources?: {
-    [key: string]: {
-      resource?: Resource;
-      handler?: (...args: any) => any;
-      [key: string]: any;
-    };
-  };
-}
-
 interface Stack {
   type: string;
   id: string;
@@ -59,7 +43,15 @@ interface Stack {
 }
 
 class Flow {
-  public config: Config;
+  public mode: string;
+  public name?: string;
+  public resource: Resource;
+  public triggers: {
+    [key: string]: Trigger;
+  }
+  public resources: {
+    [key: string]: Resource;
+  }
   public steps: any[];
   public logger: Logger;
   public mounted: boolean;
@@ -78,7 +70,17 @@ class Flow {
    * @param config.resource {Resource=} 云函数对应的云资源配置
    * @param steps {step[]} 步骤数组
    */
-  constructor (config: Config, ...steps: any) {
+  constructor (config: {
+    mode?: string;
+    name?: string;
+    triggers?: {
+      [key: string]: Trigger;
+    };
+    resource?: Resource;
+    resources?: {
+      [key: string]: Resource;
+    };
+  }, ...steps: any) {
     this.logger = new Logger('@faasjs/flow');
 
     if (!steps.length) {
@@ -102,12 +104,15 @@ class Flow {
       }
     }
 
-    this.config = deepMerge({
-      mode: 'sync',
-      triggers: Object.create(null),
-      resource: Object.create(null),
-      resources: Object.create(null),
-    }, config);
+    this.mode = config.mode || 'sync';
+    this.name = config.name;
+    this.resource = config.resource || {
+      handler: () => {
+        this.logger.error('Fake function resource');
+      }
+    };
+    this.triggers = config.triggers || Object.create(null);
+    this.resources = config.resources || Object.create(null);
 
     this.mounted = false;
     this.helpers = Object.create(null);
@@ -146,13 +151,13 @@ class Flow {
       // 执行步骤
       if (type === 'invoke') {
         // invoke 触发时，使用内置触发器
-        if (this.config.mode === 'sync') {
+        if (this.mode === 'sync') {
           return await syncInvokeTrigger(this, index, processed);
         } else {
           return await asyncInvokeTrigger(this, index, processed);
         }
       } else {
-        const trigger: Trigger = this.config.triggers![type as string];
+        const trigger: Trigger = this.triggers![type as string];
         return await trigger.handler!(this, trigger, processed);
       }
     };
@@ -244,14 +249,41 @@ class Flow {
   /**
    * 容器实例创建时进行容器实例的初始化
    */
-  protected onMounted () {
+  public onMounted () {
     if (!this.mounted) {
       this.logger.debug('onMounted begin');
 
-      // 检查触发器
-      for (const key in this.config.triggers) {
-        if (this.config.triggers.hasOwnProperty(key)) {
-          const trigger = this.config.triggers[key as string];
+      // 加载云函数
+      if (!this.resource.handler) {
+        if (!this.resource!.type) {
+          throw Error('Unknow resource type');
+        }
+        let typePath = this.resource.type;
+        try {
+          // eslint-disable-next-line security/detect-non-literal-require
+          this.resource.handler = require(`@faasjs/provider-${typePath}`);
+        } catch (e) {
+          try {
+            // eslint-disable-next-line security/detect-non-literal-require
+            this.resource.handler = require(typePath);
+          } catch (e) {
+            throw Error(`Unknow resource: ${typePath}`);
+          }
+        }
+      }
+
+      if (typeof this.resource.handler !== 'function') {
+        throw Error(`Resource#function<${this.resource.type}> is not a function`);
+      }
+
+      this.resource.handler(this.resource, this);
+
+      this.logger.debug('Resource#function mounted');
+
+      // 加载触发器
+      for (const key in this.triggers) {
+        if (this.triggers.hasOwnProperty(key)) {
+          const trigger = this.triggers[key as string];
           if (!trigger.resource) {
             trigger.resource = Object.create(null);
           }
@@ -279,16 +311,13 @@ class Flow {
         }
       }
 
-      // 检查引用云资源
-      for (const key in this.config.resources) {
-        if (this.config.resources.hasOwnProperty(key)) {
-          const resource = this.config.resources[key as string];
-          if (!resource.resource) {
-            resource.resource = Object.create(null);
-          }
+      // 加载云资源
+      for (const key in this.resources) {
+        if (this.resources.hasOwnProperty(key)) {
+          const resource = this.resources[key as string];
 
           if (!resource.handler) {
-            const typePath = resource.resource!.type || key;
+            const typePath = resource.type || key;
             try {
               // eslint-disable-next-line security/detect-non-literal-require
               resource.handler = require(`@faasjs/provider-${typePath}`);
@@ -303,7 +332,7 @@ class Flow {
           }
 
           if (typeof resource.handler !== 'function') {
-            throw Error(`Resource#${key}<${resource.resource!.type}> is not a function`);
+            throw Error(`Resource#${key}<${resource.type}> is not a function`);
           }
 
           this.logger.debug(`Resource#${key} mounted`);
@@ -312,9 +341,9 @@ class Flow {
 
       // 生成 helpers
       this.helpers.logger = this.logger;
-      for (const key in this.config.resources) {
-        if (this.config.resources.hasOwnProperty(key)) {
-          const resource = this.config.resources[key as string];
+      for (const key in this.resources) {
+        if (this.resources.hasOwnProperty(key)) {
+          const resource = this.resources[key as string];
           this.helpers[key as string] = resource.handler!(resource, this);
           this.logger.debug(`Helper#${key} mounted`);
         }
