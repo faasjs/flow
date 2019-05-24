@@ -204,7 +204,7 @@ class Flow {
    * @param origin.event {object} 事件数据
    * @param origin.context {object} 环境数据
    */
-  protected async processOrigin ({ type, event, context }: { type: string; event: any; context: any }):
+  public async processOrigin ({ type, event, context }: { type: string; event: any; context: any }):
   Promise<{
     context: {
       trackId: string;
@@ -311,6 +311,7 @@ class Flow {
       }
 
       // 生成 helpers
+      this.helpers.logger = this.logger;
       for (const key in this.config.resources) {
         if (this.config.resources.hasOwnProperty(key)) {
           const resource = this.config.resources[key as string];
