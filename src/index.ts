@@ -261,11 +261,11 @@ class Flow {
         let typePath = this.resource.type;
         try {
           // eslint-disable-next-line security/detect-non-literal-require
-          this.resource.handler = require(`@faasjs/provider-${typePath}`);
+          this.resource.handler = require(`@faasjs/provider-${typePath}`).handler;
         } catch (e) {
           try {
             // eslint-disable-next-line security/detect-non-literal-require
-            this.resource.handler = require(typePath);
+            this.resource.handler = require(typePath).handler;
           } catch (e) {
             throw Error(`Unknow resource: ${typePath}`);
           }
@@ -292,11 +292,11 @@ class Flow {
             const typePath = trigger.type || key;
             try {
               // eslint-disable-next-line security/detect-non-literal-require
-              trigger.handler = require(`@faasjs/trigger-${typePath}`);
+              trigger.handler = require(`@faasjs/trigger-${typePath}`).handler;
             } catch (e) {
               try {
                 // eslint-disable-next-line security/detect-non-literal-require
-                trigger.handler = require(typePath);
+                trigger.handler = require(typePath).handler;
               } catch (e) {
                 throw Error(`Unknow trigger: ${key} ${typePath}`);
               }
@@ -320,11 +320,11 @@ class Flow {
             const typePath = resource.type || key;
             try {
               // eslint-disable-next-line security/detect-non-literal-require
-              resource.handler = require(`@faasjs/provider-${typePath}`);
+              resource.handler = require(`@faasjs/provider-${typePath}`).handler;
             } catch (e) {
               try {
                 // eslint-disable-next-line security/detect-non-literal-require
-                resource.handler = require(typePath);
+                resource.handler = require(typePath).handler;
               } catch (e) {
                 throw Error(`Unknow resource: ${key} ${typePath}`);
               }
