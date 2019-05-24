@@ -319,7 +319,7 @@ class Flow {
         }
       }
     }
-
+    this.mounted = true;
     this.logger.debug('onMounted done');
   }
 }
