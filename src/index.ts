@@ -280,12 +280,9 @@ class Flow {
       for (const key in this.triggers) {
         if (this.triggers.hasOwnProperty(key)) {
           const trigger = this.triggers[key as string];
-          if (!trigger.resource) {
-            trigger.resource = Object.create(null);
-          }
 
           if (!trigger.handler) {
-            const typePath = trigger.type || key;
+            const typePath = trigger.triggerType || trigger.type || key;
             try {
               // eslint-disable-next-line security/detect-non-literal-require
               trigger.handler = require(`@faasjs/trigger-${typePath}`).handler;
@@ -300,7 +297,7 @@ class Flow {
           }
 
           if (typeof trigger.handler !== 'function') {
-            throw Error(`Trigger#${key}<${trigger.resource!.type}> is not a function`);
+            throw Error(`Trigger#${key}<${trigger.triggerType || trigger.type}> is not a function`);
           }
 
           this.logger.debug(`Trigger#${key} mounted`);
